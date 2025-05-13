@@ -71,79 +71,105 @@
     let apiReady = false;
 
     window.onYouTubeIframeAPIReady = function () {
+      console.log("✅ API do YouTube carregada");
       apiReady = true;
     };
 
     function loadVideos() {
-      if (!apiReady) return alert("Aguarde a API do YouTube carregar...");
+      if (!apiReady) {
+        alert("⏳ Aguarde a API do YouTube carregar...");
+        return;
+      }
 
       const urlInput = document.getElementById('videoUrl').value.trim();
-      if (!urlInput) return alert("Por favor, cole um link do YouTube.");
+      if (!urlInput) {
+        alert("⚠️ Por favor, cole um link do YouTube.");
+        return;
+      }
 
       const videoId = extractVideoID(urlInput);
-      if (!videoId) return alert("Link do YouTube inválido.");
+      if (!videoId) {
+        alert("❌ Link do YouTube inválido.");
+        return;
+      }
 
       currentVideoId = videoId;
 
       const baseContainer = document.getElementById('basePlayer');
       const playersContainer = document.getElementById('players');
 
+      // Limpar players anteriores
       baseContainer.innerHTML = '';
       playersContainer.innerHTML = '';
       players = [];
 
+      // Criar player base
       basePlayer = new YT.Player(baseContainer, {
-        height: '200',
-        width: '300',
         videoId: videoId,
-        playerVars: { autoplay: 0, controls: 1, rel: 0 },
+        playerVars: {
+          autoplay: 0,
+          controls: 1,
+          rel: 0
+        },
         events: {
-          'onReady': () => console.log("Player base pronto."),
+          'onReady': () => console.log("✅ Player base pronto"),
           'onStateChange': onBasePlayerStateChange
         }
       });
 
+      // Criar os outros 20 players
       for (let i = 0; i < totalPlayers; i++) {
         const container = document.createElement('div');
         container.className = 'player-container';
         playersContainer.appendChild(container);
 
-        const player = new YT.Player(container, {
-          height: '200',
-          width: '300',
-          videoId: videoId,
-          playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0 }
-        });
-        players.push(player);
+        setTimeout(() => {
+          const player = new YT.Player(container, {
+            videoId: videoId,
+            playerVars: {
+              autoplay: 0,
+              mute: 1,
+              controls: 1,
+              rel: 0
+            }
+          });
+          players.push(player);
+        }, i * 100); // Pequeno delay pra evitar sobrecarga
       }
     }
 
     function onBasePlayerStateChange(event) {
       const state = event.data;
-      if (state === YT.PlayerState.PLAYING) players.forEach(p => p.playVideo());
-      else if (state === YT.PlayerState.PAUSED) players.forEach(p => p.pauseVideo());
-      else if (state === YT.PlayerState.ENDED) players.forEach(p => p.stopVideo());
+      if (state === YT.PlayerState.PLAYING) {
+        safeCallOnPlayers('playVideo');
+      } else if (state === YT.PlayerState.PAUSED) {
+        safeCallOnPlayers('pauseVideo');
+      } else if (state === YT.PlayerState.ENDED) {
+        safeCallOnPlayers('stopVideo');
+      }
+    }
+
+    function safeCallOnPlayers(method) {
+      players.forEach(p => {
+        if (p && typeof p[method] === 'function') {
+          p[method]();
+        }
+      });
     }
 
     function playAll() {
-      if (basePlayer?.playVideo) {
-        basePlayer.playVideo();
-        players.forEach(p => p.playVideo());
-      }
+      if (basePlayer && typeof basePlayer.playVideo === 'function') basePlayer.playVideo();
+      safeCallOnPlayers('playVideo');
     }
 
     function pauseAll() {
-      if (basePlayer?.pauseVideo) {
-        basePlayer.pauseVideo();
-        players.forEach(p => p.pauseVideo());
-      }
+      if (basePlayer && typeof basePlayer.pauseVideo === 'function') basePlayer.pauseVideo();
+      safeCallOnPlayers('pauseVideo');
     }
 
     function stopAll() {
-      if (basePlayer?.stopVideo) {
-        basePlayer.stopVideo();
-        players.forEach(p => p.stopVideo());
-      }
+      if (basePlayer && typeof basePlayer.stopVideo === 'function') basePlayer.stopVideo();
+      safeCallOnPlayers('stopVideo');
     }
 
     function extractVideoID(url) {
