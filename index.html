@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>MultiView YouTube Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    input[type="text"] {
+      width: 60%;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-left: 10px;
+      cursor: pointer;
+    }
+    #basePlayer,
+    #players {
+      margin-top: 20px;
+    }
+    .player-container {
+      width: 300px;
+      height: 200px;
+      background-color: #000;
+      border: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    #controls {
+      margin-top: 10px;
+    }
+    #controls button {
+      margin-right: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>MultiView - Controle Sincronizado de 20 Players do YouTube</h2>
+  <input type="text" id="videoUrl" placeholder="Cole o link do YouTube aqui">
+  <button onclick="loadVideos()">Carregar 20 Players</button>
+
+  <div id="basePlayer" class="player-container"></div>
+
+  <div id="controls">
+    <button onclick="playAll()">▶ Play</button>
+    <button onclick="pauseAll()">⏸ Pause</button>
+    <button onclick="stopAll()">⏹ Stop</button>
+  </div>
+
+  <div id="players"></div>
+
+  <!-- API do YouTube -->
+  <script src="https://www.youtube.com/iframe_api "></script>
+
+  <script>
+    let basePlayer;
+    let players = [];
+    const totalPlayers = 20;
+    let currentVideoId = '';
+    let apiReady = false;
+
+    window.onYouTubeIframeAPIReady = function () {
+      apiReady = true;
+    };
+
+    function loadVideos() {
+      if (!apiReady) return alert("Aguarde a API do YouTube carregar...");
+
+      const urlInput = document.getElementById('videoUrl').value.trim();
+      if (!urlInput) return alert("Por favor, cole um link do YouTube.");
+
+      const videoId = extractVideoID(urlInput);
+      if (!videoId) return alert("Link do YouTube inválido.");
+
+      currentVideoId = videoId;
+
+      const baseContainer = document.getElementById('basePlayer');
+      const playersContainer = document.getElementById('players');
+
+      baseContainer.innerHTML = '';
+      playersContainer.innerHTML = '';
+      players = [];
+
+      basePlayer = new YT.Player(baseContainer, {
+        height: '200',
+        width: '300',
+        videoId: videoId,
+        playerVars: { autoplay: 0, controls: 1, rel: 0 },
+        events: {
+          'onReady': () => console.log("Player base pronto."),
+          'onStateChange': onBasePlayerStateChange
+        }
+      });
+
+      for (let i = 0; i < totalPlayers; i++) {
+        const container = document.createElement('div');
+        container.className = 'player-container';
+        playersContainer.appendChild(container);
+
+        const player = new YT.Player(container, {
+          height: '200',
+          width: '300',
+          videoId: videoId,
+          playerVars: { autoplay: 0, mute: 1, controls: 1, rel: 0 }
+        });
+        players.push(player);
+      }
+    }
+
+    function onBasePlayerStateChange(event) {
+      const state = event.data;
+      if (state === YT.PlayerState.PLAYING) players.forEach(p => p.playVideo());
+      else if (state === YT.PlayerState.PAUSED) players.forEach(p => p.pauseVideo());
+      else if (state === YT.PlayerState.ENDED) players.forEach(p => p.stopVideo());
+    }
+
+    function playAll() {
+      if (basePlayer?.playVideo) {
+        basePlayer.playVideo();
+        players.forEach(p => p.playVideo());
+      }
+    }
+
+    function pauseAll() {
+      if (basePlayer?.pauseVideo) {
+        basePlayer.pauseVideo();
+        players.forEach(p => p.pauseVideo());
+      }
+    }
+
+    function stopAll() {
+      if (basePlayer?.stopVideo) {
+        basePlayer.stopVideo();
+        players.forEach(p => p.stopVideo());
+      }
+    }
+
+    function extractVideoID(url) {
+      let id = '';
+      if (url.includes('youtu.be')) {
+        id = url.split('/').pop().split('?')[0];
+      } else if (url.includes('youtube.com/watch')) {
+        id = url.split('v=')[1]?.split('&')[0];
+      } else if (url.includes('embed')) {
+        id = url.split('/embed/')[1]?.split('?')[0];
+      }
+      return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+    }
+  </script>
+
+</body>
+</html>
